@@ -4,6 +4,17 @@
 
 ![Screenshot](monolock_screenshot.png)
 
+
+- [Features](#features)
+- [Installation](#installation)
+  - [Dependencies](#dependencies)
+  - [Building from Source](#building-from-source)
+- [Initial Setup](#initial-setup)
+- [Usage](#usage)
+- [Configuration](#configuration)
+- [Future features](#future-features)
+
+
 ## Features
 
 *   **Fully Customizable:** Change fonts, colors, ASCII art, and more through a simple INI configuration file.
@@ -110,3 +121,11 @@ All settings are located in `~/.config/monolock/config.ini`.
 | `ascii_color_start` | The starting (top) color of the gradient for the art.                                                   | `#FFCEE6`                 |
 | `ascii_color_end`   | The ending (bottom) color of the gradient.                                                              | `#E56AB3`                 |
 | `ascii_color`       | A solid color for the art (used if gradient colors are not set).                                        | `#ffffff`                 |
+
+---
+
+## Future features
+
+- Auto mute sound when locking option
+- Hide notifications option
+- UI config
