@@ -129,3 +129,6 @@ All settings are located in `~/.config/monolock/config.ini`.
 - Auto mute sound when locking option
 - Hide notifications option
 - UI config
+
+## Known bugs
+- BUG If alredy locked and its auto locks its being buggy and after unlocking screen of locker not dissapear
