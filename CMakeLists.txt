@@ -10,6 +10,7 @@ add_compile_options(-Wall -Wextra -pedantic)
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(DEPS REQUIRED
     x11
+    xext
     xft
     xinerama
     freetype2

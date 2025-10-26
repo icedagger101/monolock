@@ -15,12 +15,63 @@ LockerApp::LockerApp()
     instance = this;
     signal(SIGINT, LockerApp::handleSignal);
     signal(SIGTERM, LockerApp::handleSignal);
+
+    Display* dpy = screenManager.getDisplay();
+    root_window = DefaultRootWindow(dpy);
+
+    int dummy;
+    if (DPMSQueryExtension(dpy, &dummy, &dummy)) {
+        dpms_atom = XInternAtom(dpy, "_DPMS", False);
+        if (dpms_atom != None) {
+            long event_mask = PropertyChangeMask;
+            XSelectInput(dpy, root_window, event_mask);
+        }
+    }
 }
 
 void LockerApp::handleSignal(int) {
     if (LockerApp::instance) {
         std::exit(1);
     }
+}
+
+void LockerApp::handleResume() {
+    Display* dpy = screenManager.getDisplay();
+
+    // Sync to process any pending events from resume
+    XSync(dpy, False);
+
+    // Ungrab input (safe if already ungrabbed)
+    screenManager.ungrabInput();
+
+    // Raise all overlay windows to ensure top-most stacking
+    const auto& wins = screenManager.getAllWindows();
+    for (auto win : wins) {
+        XRaiseWindow(dpy, win);
+    }
+
+    // Re-grab input
+    screenManager.grabInput();
+
+    // Re-query cursor to update active screen
+    int rx = 0, ry = 0, wx = 0, wy = 0;
+    unsigned int mask = 0;
+    Window rret = 0, cret = 0;
+    XQueryPointer(dpy, root_window, &rret, &cret, &rx, &ry, &wx, &wy, &mask);
+    int new_idx = screenManager.getScreenIndexForCoordinates(rx, ry);
+    if (new_idx >= 0) {
+        screenManager.forceSetActiveWindow(new_idx);
+    }
+
+    // Redraw backgrounds on all screens
+    const auto& all_screens = screenManager.getAllScreens();
+    for (size_t i = 0; i < wins.size(); ++i) {
+        renderer.drawBackgroundOnly(wins[i], all_screens[i]);
+    }
+
+    // Full redraw on active screen
+    renderer.setActiveWindow(screenManager.getActiveWindow());
+    renderer.draw(state, screenManager.getActiveScreenInfo());
 }
 
 void LockerApp::run() {   
@@ -32,11 +83,10 @@ void LockerApp::run() {
     while (XPending(dpy)) XNextEvent(dpy, &dummy_ev);
 
     // Determine which screen the cursor is on at startup
-    Window root = DefaultRootWindow(dpy);
     int rx = 0, ry = 0, wx = 0, wy = 0;
     unsigned int mask = 0;
     Window rret = 0, cret = 0;
-    XQueryPointer(dpy, root, &rret, &cret, &rx, &ry, &wx, &wy, &mask);
+    XQueryPointer(dpy, root_window, &rret, &cret, &rx, &ry, &wx, &wy, &mask);
 
     int final_screen_idx = screenManager.getScreenIndexForCoordinates(rx, ry);
     if (final_screen_idx < 0) final_screen_idx = 0;
@@ -70,7 +120,7 @@ void LockerApp::run() {
         }
 
         // Poll cursor position on root window
-        XQueryPointer(dpy, root, &rret, &cret, &rx, &ry, &wx, &wy, &mask);
+        XQueryPointer(dpy, root_window, &rret, &cret, &rx, &ry, &wx, &wy, &mask);
 
         // If cursor moved, check screen membership
         if (rx != last_rx || ry != last_ry) {
@@ -112,7 +162,7 @@ void LockerApp::updateCapsLockState() {
     unsigned int current_mask;
     Window dummy1, dummy2;
     int dx, dy, dx2, dy2;
-    XQueryPointer(screenManager.getDisplay(), DefaultRootWindow(screenManager.getDisplay()),
+    XQueryPointer(screenManager.getDisplay(), root_window,
                   &dummy1, &dummy2, &dx, &dy, &dx2, &dy2, &current_mask);
 
     bool new_caps_state = (current_mask & LockMask);
@@ -124,6 +174,20 @@ void LockerApp::updateCapsLockState() {
 
 void LockerApp::handleEvent(XEvent& ev) {
     updateCapsLockState();
+
+    // Handle DPMS resume via PropertyNotify
+    if (ev.type == PropertyNotify &&
+        ev.xproperty.window == root_window &&
+        ev.xproperty.atom == dpms_atom &&
+        dpms_atom != None) {
+        CARD16 state = 0;
+        BOOL power_level = 0;
+        Status status = DPMSInfo(screenManager.getDisplay(), &state, &power_level);
+        if (status == True && state == DPMSModeOn) {
+            handleResume();
+            return;  // Early return to avoid redundant processing
+        }
+    }
 
     switch (ev.type) {
     case Expose:
@@ -176,4 +240,3 @@ void LockerApp::handleKeyPress(XKeyEvent& kev) {
 
     renderer.draw(state, screenManager.getActiveScreenInfo());
 }
-
