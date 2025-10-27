@@ -116,6 +116,9 @@ void LockerApp::handleResume() {
     // Ungrab input (safe if already ungrabbed)
     screenManager.ungrabInput();
 
+    // **FIX: Delay to allow X server to fully wake up post-suspend**
+    std::this_thread::sleep_for(std::chrono::seconds(2));
+
     // Raise all overlay windows to ensure top-most stacking
     const auto& wins = screenManager.getAllWindows();
     for (auto win : wins) {
@@ -124,6 +127,9 @@ void LockerApp::handleResume() {
 
     // Re-grab input
     screenManager.grabInput();
+
+    // **FIX: Sync again after regrab to flush events**
+    XSync(dpy, False);
 
     // Re-query cursor to update active screen
     int rx = 0, ry = 0, wx = 0, wy = 0;

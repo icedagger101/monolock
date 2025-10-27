@@ -65,7 +65,7 @@ void ScreenManager::grabInput()
         if (XGrabKeyboard(dpy, DefaultRootWindow(dpy), True, GrabModeAsync, GrabModeAsync, CurrentTime) == GrabSuccess) {
             break;
         }
-        usleep(100000);
+        usleep(200000);  // **FIX: Increased from 100000 (0.1s) to 200000 (0.2s)**
     }
     XGrabPointer(dpy, DefaultRootWindow(dpy), True, ButtonPressMask | PointerMotionMask, GrabModeAsync, GrabModeAsync, None, None, CurrentTime);
 }
